@@ -225,7 +225,7 @@ function updateDiceDisplay() {
 
 function updateKInputMax() {
     const diceCount = Math.min(10, Math.max(1, parseInt(diceCountInput.value) || 1));
-    const n = Math.min(30, Math.max(1, parseInt(nInput.value) || 10));
+    const n = Math.min(100, Math.max(1, parseInt(nInput.value) || 10));
     const maxK = diceCount * n; // Maximum possible successes
     
     kInput.max = maxK;
@@ -342,7 +342,7 @@ function runAutoTrialStep() {
     
     // Run one trial simulation
     const diceCount = Math.min(10, Math.max(1, parseInt(diceCountInput.value) || 1));
-    const n = Math.min(30, Math.max(1, parseInt(nInput.value) || 10));
+    const n = Math.min(100, Math.max(1, parseInt(nInput.value) || 10));
     const k = Math.min(n * diceCount, Math.max(0, parseInt(kInput.value) || 3));
     const p = Math.min(0.99, Math.max(0.01, parseFloat(pInput.value) || 0.5));
     
@@ -608,8 +608,8 @@ function rollDice() {
     rollBtn.disabled = true;
 
     const diceCount = Math.min(10, Math.max(1, parseInt(diceCountInput.value) || 1));
-    const n = Math.min(30, Math.max(1, parseInt(nInput.value) || 10));
-    const k = Math.min(n, Math.max(0, parseInt(kInput.value) || 3));
+    const n = Math.min(100, Math.max(1, parseInt(nInput.value) || 10));
+    const k = Math.min(n * diceCount, Math.max(0, parseInt(kInput.value) || 3));
     const p = Math.min(0.99, Math.max(0.01, parseFloat(pInput.value) || 0.5));
     
     state.diceCount = diceCount;
@@ -750,8 +750,9 @@ document.querySelectorAll('input').forEach(inp => {
 
 [nInput, kInput, pInput].forEach(inp => {
     inp.addEventListener('change', () => {
-        const n = Math.min(30, Math.max(1, parseInt(nInput.value) || 10));
-        const k = Math.min(n, Math.max(0, parseInt(kInput.value) || 3));
+        const n = Math.min(100, Math.max(1, parseInt(nInput.value) || 10));
+        const diceCount = Math.min(10, Math.max(1, parseInt(diceCountInput.value) || 1));
+        const k = Math.min(n * diceCount, Math.max(0, parseInt(kInput.value) || 3));
         const p = Math.min(0.99, Math.max(0.01, parseFloat(pInput.value) || 0.5));
         state.n = n;
         state.k = k;
@@ -759,6 +760,7 @@ document.querySelectorAll('input').forEach(inp => {
         nInput.value = n;
         kInput.value = k;
         pInput.value = p;
+        updateKInputMax(); // Update k max when n changes
         updateStats();
     });
 });
