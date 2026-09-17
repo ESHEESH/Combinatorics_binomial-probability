@@ -225,10 +225,10 @@ function updateDiceDisplay() {
 // ------------------------------------------------------------
 function getSpeedSettings(speed) {
     const settings = {
-        'superfast': { delay: 5, showDiceAnimation: true },
-        'fast': { delay: 15, showDiceAnimation: true },
-        'moderate': { delay: 100, showDiceAnimation: true },
-        'slow': { delay: 300, showDiceAnimation: false }
+        'superfast': { delay: 5, showDiceAnimation: true, soundFrequency: 1 },
+        'fast': { delay: 15, showDiceAnimation: true, soundFrequency: 2 },
+        'moderate': { delay: 100, showDiceAnimation: true, soundFrequency: 5 },
+        'slow': { delay: 300, showDiceAnimation: false, soundFrequency: 1 }
     };
     return settings[speed] || settings['moderate'];
 }
@@ -282,6 +282,14 @@ function runAutoTrialStep() {
     
     const speedSettings = getSpeedSettings(state.autoTrialSpeed);
     
+    // Play sounds based on speed and frequency
+    if (['superfast', 'fast', 'moderate'].includes(state.autoTrialSpeed)) {
+        // Play impact sound based on speed frequency
+        if (state.autoTrialProgress % speedSettings.soundFrequency === 0) {
+            playImpactSound();
+        }
+    }
+    
     // Highlight algorithm steps (only for slow speed to avoid overwhelming)
     if (state.autoTrialSpeed === 'slow') {
         highlightAlgorithmStep('sim-loop');
@@ -304,13 +312,16 @@ function runAutoTrialStep() {
         totalSuccesses += diceSuccesses;
     }
     
-    // For slow speed, show individual dice animation
+    // For slow speed, show individual dice animation and play sound
     if (state.autoTrialSpeed === 'slow') {
         const allDice = diceContainer.querySelectorAll('.dice');
         allDice.forEach((dice, index) => {
             const visualFace = Math.floor(Math.random() * 6) + 1;
             animateDiceToFace(dice, visualFace, index * 50);
         });
+        
+        // Play individual impact sound for each slow trial
+        setTimeout(() => playImpactSound(), 200);
     }
     
     // Update statistics
@@ -348,11 +359,16 @@ function stopAutoTrial() {
     // Stop dice spinning
     stopDiceSpinning();
     
+    // Play completion ding sound
+    setTimeout(() => {
+        playDingSound();
+    }, 200);
+    
     autoProgressText.textContent = `Completed: ${state.autoTrialProgress} trials`;
     
-    // Final highlight
+    // Final highlight (only for slow mode)
     if (state.autoTrialSpeed === 'slow') {
-        setTimeout(() => highlightAlgorithmStep('sim-return'), 200);
+        setTimeout(() => highlightAlgorithmStep('sim-return'), 400);
     }
 }
 
