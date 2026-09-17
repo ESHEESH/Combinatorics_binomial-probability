@@ -218,6 +218,47 @@ function updateDiceDisplay() {
         const { wrapper } = createDice(i);
         diceContainer.appendChild(wrapper);
     }
+    
+    // Update k input maximum when dice count changes
+    updateKInputMax();
+}
+
+function updateKInputMax() {
+    const diceCount = Math.min(10, Math.max(1, parseInt(diceCountInput.value) || 1));
+    const n = Math.min(30, Math.max(1, parseInt(nInput.value) || 10));
+    const maxK = diceCount * n; // Maximum possible successes
+    
+    kInput.max = maxK;
+    
+    // If current k value exceeds new max, adjust it
+    const currentK = parseInt(kInput.value) || 3;
+    if (currentK > maxK) {
+        kInput.value = Math.floor(maxK / 2); // Set to middle value as reasonable default
+    }
+}
+
+function checkAndGlowMatchingDice(newRolls) {
+    const allDice = diceContainer.querySelectorAll('.dice');
+    
+    // Clear previous glows
+    allDice.forEach(dice => dice.classList.remove('glow-green'));
+    
+    // Check if any dice match their previous value
+    if (state.lastRolls && state.lastRolls.length === newRolls.length) {
+        newRolls.forEach((roll, index) => {
+            if (roll === state.lastRolls[index] && allDice[index]) {
+                // Add glow effect for matching dice
+                allDice[index].classList.add('glow-green');
+                
+                // Remove glow after 1 second
+                setTimeout(() => {
+                    if (allDice[index]) {
+                        allDice[index].classList.remove('glow-green');
+                    }
+                }, 1000);
+            }
+        });
+    }
 }
 
 // ------------------------------------------------------------
@@ -300,8 +341,13 @@ function runAutoTrialStep() {
     }
     
     // Run one trial simulation
-    const { diceCount, n, k, p } = state;
+    const diceCount = Math.min(10, Math.max(1, parseInt(diceCountInput.value) || 1));
+    const n = Math.min(30, Math.max(1, parseInt(nInput.value) || 10));
+    const k = Math.min(n * diceCount, Math.max(0, parseInt(kInput.value) || 3));
+    const p = Math.min(0.99, Math.max(0.01, parseFloat(pInput.value) || 0.5));
+    
     let totalSuccesses = 0;
+    const rolls = []; // Track visual dice for display
     
     // Simulate dice rolls without visual animation for fast speeds
     for (let diceIndex = 0; diceIndex < diceCount; diceIndex++) {
@@ -310,14 +356,39 @@ function runAutoTrialStep() {
             if (Math.random() < p) diceSuccesses++;
         }
         totalSuccesses += diceSuccesses;
+        
+        // Generate visual dice face for display (even if not animated)
+        const visualFace = Math.floor(Math.random() * 6) + 1;
+        rolls.push(visualFace);
+    }
+    
+    // Update state with last roll information
+    const previousRolls = [...state.lastRolls]; // Store previous rolls for comparison
+    state.lastRolls = rolls;
+    state.lastSuccesses = totalSuccesses;
+    
+    // Check for matching dice and apply glow effect (for all speeds except slow)
+    if (state.autoTrialSpeed !== 'slow') {
+        checkAndGlowMatchingDice(rolls);
     }
     
     // For slow speed, show individual dice animation and play sound
     if (state.autoTrialSpeed === 'slow') {
         const allDice = diceContainer.querySelectorAll('.dice');
         allDice.forEach((dice, index) => {
-            const visualFace = Math.floor(Math.random() * 6) + 1;
-            animateDiceToFace(dice, visualFace, index * 50);
+            // Check if this dice should glow instead of animate
+            const shouldGlow = previousRolls && previousRolls[index] === rolls[index];
+            
+            if (shouldGlow) {
+                // Add glow effect instead of animation
+                dice.classList.add('glow-green');
+                setTimeout(() => {
+                    dice.classList.remove('glow-green');
+                }, 1000);
+            } else {
+                // Normal animation
+                animateDiceToFace(dice, rolls[index], index * 50);
+            }
         });
         
         // Play individual impact sound for each slow trial
@@ -334,7 +405,13 @@ function runAutoTrialStep() {
     }
     state.successDistribution[totalSuccesses]++;
     
-    if (totalSuccesses === k) state.successCount += 1;
+    // Debug logging
+    console.log(`Trial ${state.autoTrialProgress}: totalSuccesses=${totalSuccesses}, k=${k}, match=${totalSuccesses === k}`);
+    
+    if (totalSuccesses === k) {
+        state.successCount += 1;
+        console.log(`SUCCESS! Count now: ${state.successCount}`);
+    }
     
     // Update progress
     const speedText = state.autoTrialSpeed.charAt(0).toUpperCase() + state.autoTrialSpeed.slice(1);
@@ -570,7 +647,19 @@ function rollDice() {
         
         const diceElement = document.getElementById(`dice-${diceIndex}`);
         if (diceElement) {
-            animateDiceToFace(diceElement, visualFace, diceIndex * 100);
+            // Check if this dice should glow (same as previous roll)
+            const shouldGlow = state.lastRolls && state.lastRolls[diceIndex] === visualFace;
+            
+            if (shouldGlow) {
+                // Add glow effect instead of animation
+                diceElement.classList.add('glow-green');
+                setTimeout(() => {
+                    diceElement.classList.remove('glow-green');
+                }, 1000);
+            } else {
+                // Normal animation
+                animateDiceToFace(diceElement, visualFace, diceIndex * 100);
+            }
         }
     }
     
@@ -645,6 +734,11 @@ diceCountInput.addEventListener('change', () => {
     updateStats();
 });
 
+// Add event listener for n input to update k max
+nInput.addEventListener('change', () => {
+    updateKInputMax();
+});
+
 document.querySelectorAll('input').forEach(inp => {
     inp.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -684,6 +778,7 @@ document.querySelectorAll('input').forEach(inp => {
     state.p = 0.5;
     
     updateDiceDisplay();
+    updateKInputMax(); // Set correct k maximum on init
     updateStats();
 
     document.body.addEventListener('click', () => {
